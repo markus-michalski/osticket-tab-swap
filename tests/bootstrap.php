@@ -8,8 +8,9 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 // Define constants that osTicket normally provides
+// For unit tests, we don't need the real osTicket - we use mocks below
 if (!defined('INCLUDE_DIR')) {
-    define('INCLUDE_DIR', __DIR__ . '/../../osTicket/include/');
+    define('INCLUDE_DIR', __DIR__ . '/../include/');
 }
 
 if (!defined('ROOT_PATH')) {

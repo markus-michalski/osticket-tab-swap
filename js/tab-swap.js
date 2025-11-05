@@ -18,6 +18,7 @@
         init: function() {
             // Guard: Prevent double-initialization in same page context
             if (this.initialized) {
+                console.log('[Tab-Swap] Already initialized, skipping');
                 return;
             }
 
@@ -42,10 +43,12 @@
 
             // Guard: Check if required elements exist
             if (!$replyTab.length || !$noteTab.length) {
+                console.log('[Tab-Swap] Required tabs not found');
                 return;
             }
 
             if (!$replyForm.length || !$noteForm.length) {
+                console.log('[Tab-Swap] Required forms not found');
                 return;
             }
 

@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: ['7.4', '8.0', '8.1', '8.2', '8.3']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+
+      - name: PHP Syntax Check
+        run: |
+          echo "Checking PHP syntax for all .php files..."
+          find . -name "*.php" -print0 | while IFS= read -r -d '' file; do
+            echo "Checking: $file"
+            php -l "$file"
+          done
+
+      - name: Verify Required Files
+        run: |
+          echo "Verifying plugin structure..."
+          test -f plugin.php || { echo "Error: plugin.php not found"; exit 1; }
+          test -f class.TabSwapPlugin.php || { echo "Error: class.TabSwapPlugin.php not found"; exit 1; }
+          test -f config.php || { echo "Error: config.php not found"; exit 1; }
+          test -d js || { echo "Error: js/ directory not found"; exit 1; }
+          test -f js/tab-swap.js || { echo "Error: js/tab-swap.js not found"; exit 1; }
+          test -f CHANGELOG.md || { echo "Error: CHANGELOG.md not found"; exit 1; }
+          test -f LICENSE || { echo "Error: LICENSE not found"; exit 1; }
+          test -f .releaseinclude || { echo "Error: .releaseinclude not found"; exit 1; }
+          echo "✓ All required files present"
+
+      - name: Check Plugin Metadata
+        run: |
+          echo "Checking plugin.php metadata..."
+          grep -q "'name'" plugin.php || { echo "Error: Plugin name missing"; exit 1; }
+          grep -q "'version'" plugin.php || { echo "Error: Plugin version missing"; exit 1; }
+          echo "✓ Plugin metadata valid"
+
+      - name: Security Check - No Obvious Vulnerabilities
+        run: |
+          echo "Basic security checks..."
+          # Check for eval() usage (potential security risk)
+          if grep -r "eval(" --include="*.php" .; then
+            echo "Warning: eval() found in code"
+            exit 1
+          fi
+          # Check for base64_decode (often used in malware)
+          if grep -r "base64_decode" --include="*.php" .; then
+            echo "Warning: base64_decode found - review carefully"
+            exit 1
+          fi
+          echo "✓ No obvious security issues found"
+
+  phpunit-tests:
+    name: PHPUnit Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: ['7.4', '8.0', '8.1', '8.2', '8.3']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+
+      - name: Install Composer Dependencies
+        run: composer install --prefer-dist --no-progress --no-suggest
+
+      - name: Run PHPUnit Tests
+        run: composer test
+
+  jest-tests:
+    name: Jest Tests (JavaScript)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install NPM Dependencies
+        run: npm ci
+
+      - name: Run Jest Tests
+        run: npm test
+
+  markdown-lint:
+    name: Markdown Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check README.md exists
+        run: |
+          test -f README.md || { echo "Error: README.md not found"; exit 1; }
+          echo "✓ README file present"
+
+      - name: Verify CHANGELOG format
+        run: |
+          echo "Checking CHANGELOG.md format..."
+          grep -q "## \[Unreleased\]" CHANGELOG.md || { echo "Error: [Unreleased] section missing"; exit 1; }
+          echo "✓ CHANGELOG format valid"
