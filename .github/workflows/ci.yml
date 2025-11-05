@@ -87,7 +87,7 @@ jobs:
           coverage: none
 
       - name: Install Composer Dependencies
-        run: composer install --prefer-dist --no-progress --no-suggest
+        run: composer install --prefer-dist --no-progress
 
       - name: Run PHPUnit Tests
         run: composer test
