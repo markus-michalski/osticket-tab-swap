@@ -1,0 +1,17 @@
+# Release Include Rules for Tab Swap Plugin
+# Only files and patterns listed here will be included in release ZIPs
+# Format: One pattern per line (supports glob patterns)
+#
+# This is the PREFERRED method (vs .releaseignore blacklist approach)
+# Advantage: Explicit control over release contents
+
+# Core PHP Files
+*.php
+
+# Assets
+js/
+
+# Documentation (User-facing)
+README.md
+LICENSE
+CHANGELOG.md
