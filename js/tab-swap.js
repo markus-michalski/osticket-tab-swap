@@ -18,7 +18,6 @@
         init: function() {
             // Guard: Prevent double-initialization in same page context
             if (this.initialized) {
-                console.log('[Tab-Swap] Already initialized, skipping');
                 return;
             }
 
@@ -43,12 +42,10 @@
 
             // Guard: Check if required elements exist
             if (!$replyTab.length || !$noteTab.length) {
-                console.log('[Tab-Swap] Required tabs not found');
                 return;
             }
 
             if (!$replyForm.length || !$noteForm.length) {
-                console.log('[Tab-Swap] Required forms not found');
                 return;
             }
 
@@ -110,20 +107,16 @@
     };
 
     // Initial load - execute with multiple fallbacks to handle various load scenarios
-    console.log('[Tab-Swap] Script loaded, document.readyState =', document.readyState);
-
     // Strategy 1: Try immediately (in case DOM is already ready)
     TabSwapPlugin.init();
 
     // Strategy 2: Try on document ready (in case DOM is still loading)
     $(document).ready(function() {
-        console.log('[Tab-Swap] document.ready fired');
         TabSwapPlugin.init();
     });
 
     // Strategy 3: Fallback with short delay (in case tabs render after DOM ready)
     setTimeout(function() {
-        console.log('[Tab-Swap] Delayed init (100ms)');
         TabSwapPlugin.init();
     }, 100);
 
