@@ -109,10 +109,23 @@
         }
     };
 
-    // Initial load
+    // Initial load - execute with multiple fallbacks to handle various load scenarios
+    console.log('[Tab-Swap] Script loaded, document.readyState =', document.readyState);
+
+    // Strategy 1: Try immediately (in case DOM is already ready)
+    TabSwapPlugin.init();
+
+    // Strategy 2: Try on document ready (in case DOM is still loading)
     $(document).ready(function() {
+        console.log('[Tab-Swap] document.ready fired');
         TabSwapPlugin.init();
     });
+
+    // Strategy 3: Fallback with short delay (in case tabs render after DOM ready)
+    setTimeout(function() {
+        console.log('[Tab-Swap] Delayed init (100ms)');
+        TabSwapPlugin.init();
+    }, 100);
 
     // Remove any existing handlers to prevent memory leaks
     $(document).off('pjax:success.tabswap redraw.staff.tabswap');

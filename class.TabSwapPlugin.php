@@ -211,16 +211,8 @@ class TabSwapPlugin extends Plugin {
      * @param object $object The object being viewed (Ticket, Task, etc.)
      */
     function onObjectView($object) {
-        global $thisstaff;
-
         // Only handle Ticket objects
         if (!($object instanceof Ticket)) {
-            return;
-        }
-
-        // Only inject if user has reply permission
-        // (If user can't reply, they won't see the Reply tab anyway)
-        if (!$thisstaff || !$thisstaff->hasPerm(Ticket::PERM_REPLY)) {
             return;
         }
 
