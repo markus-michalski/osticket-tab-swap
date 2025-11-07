@@ -45,7 +45,6 @@ class TabSwapPlugin extends Plugin {
         $plugin_file = INCLUDE_DIR . 'plugins/' . basename(dirname(__FILE__)) . '/plugin.php';
 
         if (!file_exists($plugin_file)) {
-            error_log('[Tab-Swap] plugin.php not found');
             return;
         }
 
@@ -62,15 +61,11 @@ class TabSwapPlugin extends Plugin {
      * Perform plugin update
      */
     function performUpdate($from_version, $to_version) {
-        error_log("[Tab-Swap] Updating from v{$from_version} to v{$to_version}");
-
         // Update /include/.htaccess to allow static assets
         $this->updateIncludeHtaccess();
 
         // Save new version
         $this->getConfig()->set('installed_version', $to_version);
-
-        error_log("[Tab-Swap] Update complete");
     }
 
     /**
@@ -81,7 +76,6 @@ class TabSwapPlugin extends Plugin {
         $htaccess_file = INCLUDE_DIR . '.htaccess';
 
         if (!file_exists($htaccess_file)) {
-            error_log('[Tab-Swap] Warning: /include/.htaccess not found');
             return;
         }
 
@@ -89,7 +83,6 @@ class TabSwapPlugin extends Plugin {
 
         // Check if static assets rule already exists
         if (strpos($htaccess_content, 'Allow static assets for plugins') !== false) {
-            error_log('[Tab-Swap] .htaccess already configured for static assets');
             return;
         }
 
@@ -105,7 +98,6 @@ class TabSwapPlugin extends Plugin {
         }
 
         if (!$pattern || !preg_match($pattern, $htaccess_content)) {
-            error_log('[Tab-Swap] Could not find insertion point in /include/.htaccess');
             return;
         }
 
@@ -130,11 +122,7 @@ class TabSwapPlugin extends Plugin {
             1 // Only replace first occurrence
         );
 
-        if (!file_put_contents($htaccess_file, $new_content)) {
-            error_log('[Tab-Swap] Failed to update .htaccess');
-        } else {
-            error_log('[Tab-Swap] Updated /include/.htaccess to allow static assets');
-        }
+        file_put_contents($htaccess_file, $new_content);
     }
 
     /**
@@ -152,12 +140,8 @@ class TabSwapPlugin extends Plugin {
             );
 
             if (!$this->addInstance($vars, $errors)) {
-                error_log(sprintf('[Tab-Swap] Failed to auto-create instance: %s',
-                    json_encode($errors)));
                 return $errors;
             }
-
-            error_log('[Tab-Swap] Auto-created singleton instance');
         }
 
         // Update /include/.htaccess to allow static assets for plugins
@@ -170,8 +154,6 @@ class TabSwapPlugin extends Plugin {
             $plugin_info = include($plugin_file);
             $this->getConfig()->set('installed_version', $plugin_info['version']);
         }
-
-        error_log('[Tab-Swap] Plugin enabled');
 
         return empty($errors) ? true : $errors;
     }
@@ -191,16 +173,9 @@ class TabSwapPlugin extends Plugin {
                 // Remove the FilesMatch block we added
                 $pattern = '/\n\n# Allow static assets for plugins.*?<\/FilesMatch>/s';
                 $new_content = preg_replace($pattern, '', $htaccess_content, 1);
-
-                if (!file_put_contents($htaccess_file, $new_content)) {
-                    error_log('[Tab-Swap] Failed to remove .htaccess rule');
-                } else {
-                    error_log('[Tab-Swap] Removed static assets rule from /include/.htaccess');
-                }
+                file_put_contents($htaccess_file, $new_content);
             }
         }
-
-        error_log('[Tab-Swap] Plugin disabled');
 
         return true;
     }
