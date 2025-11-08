@@ -75,7 +75,6 @@
             var $noteLi = $noteTab.parent('li');
 
             if (!$tabs.length || !$replyLi.length || !$noteLi.length) {
-                console.warn('[Tab-Swap] Tab container or list items not found');
                 return;
             }
 
