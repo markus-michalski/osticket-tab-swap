@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Nothing yet
 
+## [1.0.2] - 2025-11-08
+
+### Changed
+- added folder to .gitignore
+- Remove console warning from production code
+- remove debug error_log statements from production code
+
 ## [1.0.1] - 2025-11-06
 
 ### Changed
