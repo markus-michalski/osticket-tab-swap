@@ -24,3 +24,6 @@ Thumbs.db
 
 # Build artifacts
 *.zip
+
+# Claude Code project instructions
+CLAUDE.md
