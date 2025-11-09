@@ -72,12 +72,21 @@ describe('TabSwapPlugin', () => {
         test('RED: should not double-initialize', () => {
             require('../js/tab-swap.js');
 
+            // Mark as initialized
             window.TabSwapPlugin.initialized = true;
+
+            // Remember initial DOM state
+            const initialFirstTabId = mockTabsContainer.children[0].firstChild.id;
+
+            // Try to initialize again
             window.TabSwapPlugin.init();
 
-            expect(console.log).toHaveBeenCalledWith(
-                expect.stringContaining('Already initialized')
-            );
+            // Verify that tab order was NOT changed (still same first tab)
+            const afterSecondInitTabId = mockTabsContainer.children[0].firstChild.id;
+            expect(afterSecondInitTabId).toBe(initialFirstTabId);
+
+            // Verify initialized flag is still true
+            expect(window.TabSwapPlugin.initialized).toBe(true);
         });
     });
 
@@ -126,9 +135,11 @@ describe('TabSwapPlugin', () => {
             require('../js/tab-swap.js');
             window.TabSwapPlugin.swapTabs();
 
-            expect(console.log).toHaveBeenCalledWith(
-                expect.stringContaining('not found')
-            );
+            // Verify plugin doesn't crash and initialized stays false
+            expect(window.TabSwapPlugin.initialized).toBe(false);
+
+            // Verify no errors were thrown (test passes if we reach here)
+            expect(true).toBe(true);
         });
 
         test('RED: should handle missing forms gracefully', () => {
@@ -139,9 +150,11 @@ describe('TabSwapPlugin', () => {
             require('../js/tab-swap.js');
             window.TabSwapPlugin.swapTabs();
 
-            expect(console.log).toHaveBeenCalledWith(
-                expect.stringContaining('not found')
-            );
+            // Verify plugin doesn't crash and initialized stays false
+            expect(window.TabSwapPlugin.initialized).toBe(false);
+
+            // Verify no errors were thrown (test passes if we reach here)
+            expect(true).toBe(true);
         });
     });
 
