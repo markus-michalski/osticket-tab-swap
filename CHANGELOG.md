@@ -18,12 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0] - 2025-12-16
 
-### Changed
-- refactor!: remove .htaccess manipulation, use inline JavaScript
-- remove console.log expectations from Jest tests
-
-## [2.0.0] - 2025-12-16
-
 ### Removed
 - **BREAKING:** Removed .htaccess manipulation (was an anti-pattern causing webserver compatibility issues)
 - **BREAKING:** Removed external `js/tab-swap.js` file (JavaScript is now inline)
