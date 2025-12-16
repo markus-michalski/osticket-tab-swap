@@ -13,7 +13,7 @@
 
 return array(
     'id' =>             'net.markus-michalski:tab-swap',
-    'version' =>        '1.0.2',
+    'version' =>        '2.0.0',
     'name' =>           'Tab Swap',
     'author' =>         'Markus Michalski',
     'description' =>    'Swaps Reply and Internal Note tabs in ticket view, making Internal Note the default active tab',
