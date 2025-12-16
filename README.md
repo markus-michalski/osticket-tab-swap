@@ -50,7 +50,7 @@ git clone https://github.com/markus-michalski/osticket-tab-swap.git tab-swap
 2. Find "Tab Swap"
 3. Click **Enable**
 
-The plugin automatically installs and updates `.htaccess`.
+The plugin is now active and will automatically inject tab swap functionality.
 
 ### 3. Configure
 
@@ -73,7 +73,7 @@ The plugin automatically installs and updates `.htaccess`.
 The FAQ includes:
 
 - Detailed installation instructions
-- Troubleshooting guide (PJAX issues, JavaScript errors, .htaccess problems)
+- Troubleshooting guide (PJAX issues, JavaScript errors)
 - Edge case handling
 - Known limitations
 - Update procedures

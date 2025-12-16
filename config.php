@@ -12,14 +12,19 @@ class TabSwapConfig extends PluginConfig {
 
     /**
      * Translate strings (for i18n support)
+     *
+     * @param string $plugin Plugin name for translation context
+     * @return array{0: callable, 1: callable} Translation functions [$__, $_N]
      */
-    static function translate($plugin = 'tab-swap') {
+    static function translate($plugin = 'tab-swap'): array {
         if (!method_exists('Plugin', 'translate')) {
             return array(
                 function($x) { return $x; },
                 function($x, $y, $n) { return $n != 1 ? $y : $x; },
             );
         }
+
+        /** @disregard P1013 (Plugin class may not exist in test environment) */
         return Plugin::translate($plugin);
     }
 

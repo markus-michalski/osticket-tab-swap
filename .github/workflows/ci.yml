@@ -39,8 +39,6 @@ jobs:
           test -f plugin.php || { echo "Error: plugin.php not found"; exit 1; }
           test -f class.TabSwapPlugin.php || { echo "Error: class.TabSwapPlugin.php not found"; exit 1; }
           test -f config.php || { echo "Error: config.php not found"; exit 1; }
-          test -d js || { echo "Error: js/ directory not found"; exit 1; }
-          test -f js/tab-swap.js || { echo "Error: js/tab-swap.js not found"; exit 1; }
           test -f CHANGELOG.md || { echo "Error: CHANGELOG.md not found"; exit 1; }
           test -f LICENSE || { echo "Error: LICENSE not found"; exit 1; }
           test -f .releaseinclude || { echo "Error: .releaseinclude not found"; exit 1; }
@@ -91,26 +89,6 @@ jobs:
 
       - name: Run PHPUnit Tests
         run: composer test
-
-  jest-tests:
-    name: Jest Tests (JavaScript)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install NPM Dependencies
-        run: npm ci
-
-      - name: Run Jest Tests
-        run: npm test
 
   markdown-lint:
     name: Markdown Linting
