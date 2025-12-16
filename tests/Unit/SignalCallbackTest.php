@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Test Signal Callback (JavaScript Injection)
  *
- * RED Phase: These tests will fail initially
+ * Tests verify inline JavaScript injection behavior.
  */
 class SignalCallbackTest extends TestCase
 {
@@ -22,59 +22,52 @@ class SignalCallbackTest extends TestCase
 
     /**
      * @test
-     * RED: Test JavaScript injection for Ticket objects
+     * Verifies inline JavaScript is injected for Ticket objects
      */
-    public function it_injects_javascript_for_ticket_objects(): void
+    public function it_injects_inline_javascript_for_ticket_objects(): void
     {
         $plugin = new \TabSwapPlugin();
-
-        // Mock Ticket object
         $ticket = $this->createMock(\Ticket::class);
 
-        // Mock staff with reply permission
-        global $thisstaff;
-        $thisstaff = new class {
-            public function hasPerm($perm) {
-                return true; // Has PERM_REPLY
-            }
-        };
-
-        // Capture output
         ob_start();
         $plugin->onObjectView($ticket);
         $output = ob_get_clean();
 
-        // Assert: JavaScript should be injected
+        // Assert: Inline script should be injected
         $this->assertStringContainsString(
-            '<script',
+            '<script data-plugin="tab-swap"',
             $output,
-            'Plugin should inject JavaScript for Ticket objects'
+            'Plugin should inject inline JavaScript for Ticket objects'
         );
 
+        // Assert: Script contains tab swap logic
         $this->assertStringContainsString(
-            'tab-swap.js',
+            'TabSwap',
             $output,
-            'Plugin should inject tab-swap.js file'
+            'Inline script should contain TabSwap object'
+        );
+
+        // Assert: Script contains MutationObserver
+        $this->assertStringContainsString(
+            'MutationObserver',
+            $output,
+            'Inline script should use MutationObserver for DOM detection'
         );
     }
 
     /**
      * @test
-     * RED: Test no injection for non-Ticket objects
+     * Verifies no injection for non-Ticket objects
      */
     public function it_does_not_inject_for_non_ticket_objects(): void
     {
         $plugin = new \TabSwapPlugin();
-
-        // Mock non-Ticket object (e.g., Task)
         $task = new class {};
 
-        // Capture output
         ob_start();
         $plugin->onObjectView($task);
         $output = ob_get_clean();
 
-        // Assert: No JavaScript should be injected
         $this->assertEmpty(
             $output,
             'Plugin should NOT inject JavaScript for non-Ticket objects'
@@ -83,49 +76,21 @@ class SignalCallbackTest extends TestCase
 
     /**
      * @test
-     * GREEN: Plugin injects JavaScript regardless of reply permission
-     * (JavaScript will handle missing tabs gracefully)
+     * Verifies version is included in script data attribute
      */
-    public function it_injects_regardless_of_reply_permission(): void
-    {
-        $plugin = new \TabSwapPlugin();
-
-        $ticket = $this->createMock(\Ticket::class);
-
-        // Mock staff WITHOUT reply permission
-        global $thisstaff;
-        $thisstaff = new class {
-            public function hasPerm($perm) {
-                return false; // No PERM_REPLY
-            }
-        };
-
-        // Capture output
-        ob_start();
-        $plugin->onObjectView($ticket);
-        $output = ob_get_clean();
-
-        // Assert: JavaScript SHOULD be injected (JavaScript handles missing tabs)
-        $this->assertStringContainsString(
-            '<script src=',
-            $output,
-            'Plugin should inject JavaScript even if user lacks reply permission (JS handles edge cases)'
-        );
-    }
-
-    /**
-     * @test
-     * RED: Test cache-busting parameter in script URL
-     */
-    public function it_includes_version_in_script_url(): void
+    public function it_includes_version_in_script_data_attribute(): void
     {
         $plugin = new \TabSwapPlugin();
 
         // Mock config with version
         $config = $this->createMock(\PluginConfig::class);
         $config->method('get')
-            ->with('installed_version')
-            ->willReturn('1.0.0');
+            ->willReturnCallback(function($key) {
+                if ($key === 'installed_version') {
+                    return '1.0.0';
+                }
+                return null;
+            });
 
         $reflection = new \ReflectionClass($plugin);
         $configProperty = $reflection->getProperty('config');
@@ -134,22 +99,106 @@ class SignalCallbackTest extends TestCase
 
         $ticket = $this->createMock(\Ticket::class);
 
-        global $thisstaff;
-        $thisstaff = new class {
-            public function hasPerm($perm) {
-                return true;
-            }
-        };
+        ob_start();
+        $plugin->onObjectView($ticket);
+        $output = ob_get_clean();
+
+        // Assert: Version should be in data attribute
+        $this->assertStringContainsString(
+            'data-version="1.0.0"',
+            $output,
+            'Script tag should include version in data-version attribute'
+        );
+    }
+
+    /**
+     * @test
+     * Verifies inline script contains PJAX support
+     */
+    public function it_includes_pjax_support_in_inline_script(): void
+    {
+        $plugin = new \TabSwapPlugin();
+        $ticket = $this->createMock(\Ticket::class);
 
         ob_start();
         $plugin->onObjectView($ticket);
         $output = ob_get_clean();
 
-        // Assert: Version should be in URL
         $this->assertStringContainsString(
-            'v=1.0.0',
+            'pjax:success',
             $output,
-            'Script URL should include version for cache-busting'
+            'Inline script should include PJAX support'
+        );
+    }
+
+    /**
+     * @test
+     * Verifies inline script has guard clauses
+     */
+    public function it_includes_guard_clauses_in_inline_script(): void
+    {
+        $plugin = new \TabSwapPlugin();
+        $ticket = $this->createMock(\Ticket::class);
+
+        ob_start();
+        $plugin->onObjectView($ticket);
+        $output = ob_get_clean();
+
+        // Check for element existence guards
+        $this->assertStringContainsString(
+            'post-reply-tab',
+            $output,
+            'Inline script should reference reply tab'
+        );
+
+        $this->assertStringContainsString(
+            'post-note-tab',
+            $output,
+            'Inline script should reference note tab'
+        );
+    }
+
+    /**
+     * @test
+     * Verifies malformed version is rejected and fallback used
+     */
+    public function it_sanitizes_malformed_version(): void
+    {
+        $plugin = new \TabSwapPlugin();
+
+        // Mock config with XSS attempt in version
+        $config = $this->createMock(\PluginConfig::class);
+        $config->method('get')
+            ->willReturnCallback(function($key) {
+                if ($key === 'installed_version') {
+                    return '"><script>alert(1)</script>';
+                }
+                return null;
+            });
+
+        $reflection = new \ReflectionClass($plugin);
+        $configProperty = $reflection->getProperty('config');
+        $configProperty->setAccessible(true);
+        $configProperty->setValue($plugin, $config);
+
+        $ticket = $this->createMock(\Ticket::class);
+
+        ob_start();
+        $plugin->onObjectView($ticket);
+        $output = ob_get_clean();
+
+        // Assert: Malformed version should be replaced with fallback
+        $this->assertStringContainsString(
+            'data-version="1.0.0"',
+            $output,
+            'Malformed version should be sanitized to fallback 1.0.0'
+        );
+
+        // Assert: No XSS payload in output
+        $this->assertStringNotContainsString(
+            'alert(1)',
+            $output,
+            'XSS payload should not appear in output'
         );
     }
 }

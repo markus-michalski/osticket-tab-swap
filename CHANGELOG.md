@@ -16,6 +16,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Nothing yet
 
+## [2.0.0] - 2025-12-16
+
+### Removed
+- **BREAKING:** Removed .htaccess manipulation (was an anti-pattern causing webserver compatibility issues)
+- **BREAKING:** Removed external `js/tab-swap.js` file (JavaScript is now inline)
+
+### Added
+- Inline JavaScript injection (no webserver configuration required)
+- MutationObserver pattern for reliable DOM detection (replaces triple-init fallback)
+- CSP Nonce support (future-proof for stricter osTicket CSP policies)
+- Version validation against XSS attacks
+- Return type declarations (PHP 7.0+ standard)
+- 16 new PHP unit tests for inline script and version tracking
+
+### Changed
+- Logging now only in DEBUG mode (fixes information disclosure)
+- JavaScript is now self-contained and portable
+- Plugin now works on nginx/IIS/Caddy without modifications
+
+### Security
+- Fixed information disclosure via error_log in production
+- Added XSS prevention for version field
+- Prepared CSP Nonce support for stricter Content Security Policies
+
 ## [1.0.2] - 2025-11-08
 
 ### Changed

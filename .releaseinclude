@@ -5,11 +5,8 @@
 # This is the PREFERRED method (vs .releaseignore blacklist approach)
 # Advantage: Explicit control over release contents
 
-# Core PHP Files
+# Core PHP Files (including inline JavaScript in TabSwapPlugin)
 *.php
-
-# Assets
-js/
 
 # Documentation (User-facing)
 README.md

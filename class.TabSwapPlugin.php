@@ -14,25 +14,35 @@ if (file_exists(__DIR__ . '/config.php')) {
  *
  * Swaps the order of Reply and Internal Note tabs in ticket view,
  * making Internal Note the default active tab.
+ *
+ * Key Design Decisions:
+ * - Uses inline JavaScript instead of external file (no .htaccess modification needed)
+ * - Follows osTicket signal pattern for event handling
+ * - Implements singleton pattern for single-instance plugins
  */
 class TabSwapPlugin extends Plugin {
+
+    /** @var string Configuration class name */
     var $config_class = 'TabSwapConfig';
 
     /**
      * Only one instance of this plugin makes sense
+     *
+     * @return bool Always true - this plugin is a singleton
      */
-    function isSingleton() {
+    function isSingleton(): bool {
         return true;
     }
 
     /**
      * Bootstrap plugin - called when osTicket initializes
+     *
+     * Registers signal handlers if plugin is enabled.
+     * Version tracking ensures seamless updates.
      */
-    function bootstrap() {
-        // Version tracking and auto-update
+    function bootstrap(): void {
         $this->checkVersion();
 
-        // Only connect signal if plugin is enabled
         if ($this->getConfig()->get('enabled')) {
             Signal::connect('object.view', array($this, 'onObjectView'));
         }
@@ -40,98 +50,82 @@ class TabSwapPlugin extends Plugin {
 
     /**
      * Check plugin version and perform updates if needed
+     *
+     * Compares installed version with current plugin.php version
+     * and triggers update routine if version mismatch detected.
      */
-    function checkVersion() {
-        $plugin_file = INCLUDE_DIR . 'plugins/' . basename(dirname(__FILE__)) . '/plugin.php';
+    function checkVersion(): void {
+        $pluginInfo = $this->getPluginInfo();
 
-        if (!file_exists($plugin_file)) {
+        if (!$pluginInfo) {
             return;
         }
 
-        $plugin_info = include($plugin_file);
-        $current_version = $plugin_info['version'];
-        $installed_version = $this->getConfig()->get('installed_version');
+        $currentVersion = $pluginInfo['version'] ?? null;
+        $installedVersion = $this->getConfig()->get('installed_version');
 
-        if (!$installed_version || version_compare($installed_version, $current_version, '<')) {
-            $this->performUpdate($installed_version, $current_version);
+        if (!$installedVersion || version_compare($installedVersion, $currentVersion, '<')) {
+            $this->performUpdate($installedVersion, $currentVersion);
         }
+    }
+
+    /**
+     * Get plugin metadata from plugin.php
+     *
+     * @return array|null Plugin info array or null if file not found
+     */
+    protected function getPluginInfo(): ?array {
+        $pluginFile = $this->getPluginFilePath();
+
+        if (!file_exists($pluginFile)) {
+            return null;
+        }
+
+        return include $pluginFile;
+    }
+
+    /**
+     * Get path to plugin.php file
+     *
+     * Extracted for testability (can be overridden in tests).
+     *
+     * @return string Absolute path to plugin.php
+     */
+    protected function getPluginFilePath(): string {
+        return INCLUDE_DIR . 'plugins/' . basename(dirname(__FILE__)) . '/plugin.php';
     }
 
     /**
      * Perform plugin update
+     *
+     * @param string|null $fromVersion Previous version
+     * @param string|null $toVersion   New version
      */
-    function performUpdate($from_version, $to_version) {
-        // Update /include/.htaccess to allow static assets
-        $this->updateIncludeHtaccess();
+    function performUpdate(?string $fromVersion, ?string $toVersion): void {
+        // Save new version to config
+        $this->getConfig()->set('installed_version', $toVersion);
 
-        // Save new version
-        $this->getConfig()->set('installed_version', $to_version);
-    }
-
-    /**
-     * Update /include/.htaccess to allow static assets for plugins
-     * Supports both Apache 2.2 and 2.4 syntax
-     */
-    function updateIncludeHtaccess() {
-        $htaccess_file = INCLUDE_DIR . '.htaccess';
-
-        if (!file_exists($htaccess_file)) {
-            return;
+        // Log update only in debug mode (prevents information disclosure)
+        if (defined('DEBUG') && DEBUG && function_exists('error_log')) {
+            error_log(sprintf(
+                'Tab Swap Plugin: Updated from %s to %s',
+                $fromVersion ?? 'new install',
+                $toVersion
+            ));
         }
-
-        $htaccess_content = file_get_contents($htaccess_file);
-
-        // Check if static assets rule already exists
-        if (strpos($htaccess_content, 'Allow static assets for plugins') !== false) {
-            return;
-        }
-
-        // Find insertion point - either Apache 2.4 style or 2.2 style
-        // Look for the end of the deny block (either </IfModule> or "Deny from all")
-        $pattern = null;
-        if (preg_match('/(# Apache 2\.2\s+<IfModule !mod_authz_core\.c>.*?<\/IfModule>)/s', $htaccess_content)) {
-            // Apache 2.4 compatible format with IfModule blocks
-            $pattern = '/(# Apache 2\.2\s+<IfModule !mod_authz_core\.c>.*?<\/IfModule>)/s';
-        } elseif (preg_match('/(Deny from all)/', $htaccess_content)) {
-            // Old Apache 2.2 format
-            $pattern = '/(Deny from all)/';
-        }
-
-        if (!$pattern || !preg_match($pattern, $htaccess_content)) {
-            return;
-        }
-
-        // Generate Apache 2.2 and 2.4 compatible rules
-        $new_rule = "\n\n# Allow static assets for plugins (JavaScript, CSS, images, fonts)\n";
-        $new_rule .= "<FilesMatch \"\\.(js|css|map|json|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|otf)\$\">\n";
-        $new_rule .= "    # Apache 2.4\n";
-        $new_rule .= "    <IfModule mod_authz_core.c>\n";
-        $new_rule .= "        Require all granted\n";
-        $new_rule .= "    </IfModule>\n\n";
-        $new_rule .= "    # Apache 2.2\n";
-        $new_rule .= "    <IfModule !mod_authz_core.c>\n";
-        $new_rule .= "        Order allow,deny\n";
-        $new_rule .= "        Allow from all\n";
-        $new_rule .= "    </IfModule>\n";
-        $new_rule .= "</FilesMatch>";
-
-        $new_content = preg_replace(
-            $pattern,
-            "$1" . $new_rule,
-            $htaccess_content,
-            1 // Only replace first occurrence
-        );
-
-        file_put_contents($htaccess_file, $new_content);
     }
 
     /**
      * Called when plugin is enabled in admin panel
+     *
+     * Creates singleton instance automatically and saves current version.
+     *
+     * @return bool|array True on success, array of errors on failure
      */
     function enable() {
         $errors = array();
 
-        // Auto-create instance for singleton plugin
+        // Auto-create instance for singleton plugin (osTicket Best Practice)
         if ($this->isSingleton() && $this->getNumInstances() === 0) {
             $vars = array(
                 'name' => $this->getName(),
@@ -140,19 +134,19 @@ class TabSwapPlugin extends Plugin {
             );
 
             if (!$this->addInstance($vars, $errors)) {
+                // Log failure in debug mode only (avoid information disclosure)
+                if (defined('DEBUG') && DEBUG && function_exists('error_log')) {
+                    error_log('Tab Swap Plugin: Failed to create instance');
+                    // Note: $errors not logged - may contain sensitive data
+                }
                 return $errors;
             }
         }
 
-        // Update /include/.htaccess to allow static assets for plugins
-        $this->updateIncludeHtaccess();
-
-        // Get current version from plugin.php
-        $plugin_file = INCLUDE_DIR . 'plugins/' . basename(dirname(__FILE__)) . '/plugin.php';
-
-        if (file_exists($plugin_file)) {
-            $plugin_info = include($plugin_file);
-            $this->getConfig()->set('installed_version', $plugin_info['version']);
+        // Save current version to config
+        $pluginInfo = $this->getPluginInfo();
+        if ($pluginInfo && isset($pluginInfo['version'])) {
+            $this->getConfig()->set('installed_version', $pluginInfo['version']);
         }
 
         return empty($errors) ? true : $errors;
@@ -160,65 +154,149 @@ class TabSwapPlugin extends Plugin {
 
     /**
      * Called when plugin is disabled in admin panel
+     *
+     * @return bool Always true
      */
-    function disable() {
-        // Remove static assets rule from /include/.htaccess
-        $htaccess_file = INCLUDE_DIR . '.htaccess';
-
-        if (file_exists($htaccess_file)) {
-            $htaccess_content = file_get_contents($htaccess_file);
-
-            // Check if our rule exists
-            if (strpos($htaccess_content, 'Allow static assets for plugins') !== false) {
-                // Remove the FilesMatch block we added
-                $pattern = '/\n\n# Allow static assets for plugins.*?<\/FilesMatch>/s';
-                $new_content = preg_replace($pattern, '', $htaccess_content, 1);
-                file_put_contents($htaccess_file, $new_content);
-            }
-        }
-
+    function disable(): bool {
         return true;
     }
 
     /**
      * Signal handler for object.view
      *
+     * Injects tab swap JavaScript when viewing a Ticket.
+     * Guards against non-Ticket objects.
+     *
      * @param object $object The object being viewed (Ticket, Task, etc.)
      */
-    function onObjectView($object) {
-        // Only handle Ticket objects
+    function onObjectView($object): void {
         if (!($object instanceof Ticket)) {
             return;
         }
 
-        // Inject JavaScript to perform tab swap
-        // The JavaScript will check if both tabs exist before swapping
         $this->injectScript();
     }
 
     /**
-     * Inject JavaScript file into page
+     * Inject inline JavaScript to perform tab swap
+     *
+     * Uses inline script instead of external file to avoid .htaccess modifications.
+     * JavaScript is minified and includes all necessary guards.
      */
-    function injectScript() {
-        $script_url = $this->getPluginUrl() . '/js/tab-swap.js';
-
-        // Add cache-busting parameter with plugin version
-        $version = $this->getConfig()->get('installed_version');
-        if ($version) {
-            $script_url .= '?v=' . urlencode($version);
+    function injectScript(): void {
+        // Get and validate version (prevents XSS via malformed config data)
+        $version = $this->getConfig()->get('installed_version') ?? '1.0.0';
+        if (!preg_match('/^\d+\.\d+(\.\d+)?$/', $version)) {
+            $version = '1.0.0';
         }
 
-        // Security: Escape output to prevent XSS
-        echo '<script src="' . htmlspecialchars($script_url, ENT_QUOTES, 'UTF-8') . '"></script>';
+        $script = $this->getInlineScript();
+
+        // CSP Nonce support (future-proof for stricter osTicket CSP policies)
+        $nonce = defined('CSP_NONCE')
+            ? sprintf(' nonce="%s"', htmlspecialchars(CSP_NONCE, ENT_QUOTES, 'UTF-8'))
+            : '';
+
+        echo sprintf(
+            '<script data-plugin="tab-swap" data-version="%s"%s>%s</script>',
+            htmlspecialchars($version, ENT_QUOTES, 'UTF-8'),
+            $nonce,
+            $script
+        );
     }
 
     /**
-     * Get plugin base URL
+     * Get inline JavaScript for tab swapping
      *
-     * @return string Plugin URL (e.g., /include/plugins/tab-swap)
+     * Self-contained script that:
+     * - Uses MutationObserver for reliable DOM detection
+     * - Guards against missing elements
+     * - Supports PJAX navigation
+     * - Has no external dependencies
+     *
+     * @return string Minified JavaScript code
      */
-    function getPluginUrl() {
-        $plugin_dir = basename(dirname(__FILE__));
-        return ROOT_PATH . 'include/plugins/' . $plugin_dir;
+    protected function getInlineScript(): string {
+        // Minified but readable JavaScript
+        return <<<'JS'
+(function(){
+    "use strict";
+
+    var TabSwap = {
+        done: false,
+
+        init: function() {
+            if (this.done) return;
+
+            var replyTab = document.getElementById('post-reply-tab');
+            var noteTab = document.getElementById('post-note-tab');
+            var replyForm = document.getElementById('reply');
+            var noteForm = document.getElementById('note');
+
+            // Guard: Required elements must exist
+            if (!replyTab || !noteTab || !replyForm || !noteForm) return;
+
+            // Guard: Tabs must be visible (permission check)
+            if (replyTab.offsetParent === null || noteTab.offsetParent === null) return;
+
+            // 1. Swap tab order
+            var tabs = document.getElementById('response-tabs');
+            var replyLi = replyTab.parentNode;
+            var noteLi = noteTab.parentNode;
+            if (tabs && replyLi && noteLi) {
+                tabs.insertBefore(noteLi, replyLi);
+            }
+
+            // 2. Switch active state
+            replyTab.className = replyTab.className.replace(/\bactive\b/g, '').trim();
+            replyTab.setAttribute('aria-selected', 'false');
+            noteTab.className = noteTab.className + ' active';
+            noteTab.setAttribute('aria-selected', 'true');
+
+            // 3. Switch form visibility
+            replyForm.style.display = 'none';
+            noteForm.style.display = 'block';
+
+            this.done = true;
+        },
+
+        reset: function() {
+            this.done = false;
+        }
+    };
+
+    // Use MutationObserver for reliable detection
+    if (typeof MutationObserver !== 'undefined') {
+        var observer = new MutationObserver(function(mutations, obs) {
+            if (document.getElementById('post-reply-tab')) {
+                TabSwap.init();
+                if (TabSwap.done) obs.disconnect();
+            }
+        });
+        observer.observe(document.body || document.documentElement, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    // Fallbacks
+    TabSwap.init();
+    document.addEventListener('DOMContentLoaded', function() { TabSwap.init(); });
+
+    // PJAX support
+    document.addEventListener('pjax:success', function() {
+        TabSwap.reset();
+        TabSwap.init();
+    });
+
+    // Legacy osTicket event
+    if (typeof jQuery !== 'undefined') {
+        jQuery(document).on('redraw.staff', function() {
+            TabSwap.reset();
+            TabSwap.init();
+        });
+    }
+})();
+JS;
     }
 }
